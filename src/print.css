@@ -1,0 +1,21 @@
+@media print {
+    /* Κρύβουμε τα πάντα από προεπιλογή */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Εκτός από την περιοχή που θέλουμε να εκτυπώσουμε */
+    #printableArea, #printableArea * {
+        visibility: visible;
+    }
+
+    /* Ρυθμίζουμε την εκτυπώσιμη περιοχή να πιάνει όλη τη σελίδα */
+    #printableArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+}

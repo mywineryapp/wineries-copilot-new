@@ -12,22 +12,12 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../services/firestore';
-// Το OrderEditModal δεν χρειάζεται πλέον να εισάγεται εδώ,
-// καθώς θα το χειρίζεται το parent component
-// import OrderEditModal from '../modals/OrderEditModal';
 
-
-// Προσθήκη onOpenOrderModal στα props
+// Εδώ δεν αλλάζουμε το interaction, μόνο τη θέση και το στυλ του κουμπιού προσθήκης
 export default function WineryOrdersSection({ winery, setEditMode, onOpenOrderModal }) {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Δεν χρειάζονται πλέον αυτά τα states,
-    // καθώς το modal θα διαχειρίζεται το parent component
-    // const [selectedOrder, setSelectedOrder] = useState(null);
-    // const [modalOpen, setModalOpen] = useState(false);
-
-    // Ελέγχει για ένα event για ανανέωση των παραγγελιών
     useEffect(() => {
         const handleRefresh = () => {
             if (winery?.id) {
@@ -44,11 +34,11 @@ export default function WineryOrdersSection({ winery, setEditMode, onOpenOrderMo
         return () => {
             window.removeEventListener('refresh-winery-orders', handleRefresh);
         };
-    }, [winery]); // Πρόσθεσα winery σαν dependency για να ξανατρέχει όταν αλλάζει το οινοποιείο
+    }, [winery]);
 
     const fetchOrders = async () => {
         if (!winery?.id) {
-            setLoading(false); // Προσθήκη για να μην κολλάει στο loading αν δεν υπάρχει winery.id
+            setLoading(false);
             return;
         }
 
@@ -59,7 +49,6 @@ export default function WineryOrdersSection({ winery, setEditMode, onOpenOrderMo
                 id: doc.id,
                 ...doc.data()
             }));
-            // Ταξινομούμε τις παραγγελίες με βάση την ημερομηνία παραγγελίας (πιο πρόσφατη πρώτη)
             docs.sort((a, b) => (b.orderDate?.toDate?.() || 0) - (a.orderDate?.toDate?.() || 0));
             setOrders(docs);
         } catch (err) {
@@ -68,24 +57,6 @@ export default function WineryOrdersSection({ winery, setEditMode, onOpenOrderMo
             setLoading(false);
         }
     };
-
-    // Οι παρακάτω συναρτήσεις δεν χρειάζονται πλέον εδώ,
-    // καθώς ο χειρισμός του modal γίνεται στο parent component
-    // const handleOpenModal = (order = null) => {
-    //     setSelectedOrder(order);
-    //     setModalOpen(true);
-    // };
-
-    // const handleCloseModal = () => {
-    //     setSelectedOrder(null);
-    //     setModalOpen(false);
-    // };
-
-    // const handleSaveSuccess = () => {
-    //     handleCloseModal();
-    //     setLoading(true);
-    //     fetchOrders();
-    // };
 
     if (loading) {
         return (
@@ -96,21 +67,34 @@ export default function WineryOrdersSection({ winery, setEditMode, onOpenOrderMo
     }
 
     return (
-        <Box sx={{ mt: 2 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="h6">📦 Παραγγελίες Οινοποιείου</Typography>
+        <Box sx={{ mt: 2, position: 'relative' }}>
+            {/* Κουμπί προσθήκης πάνω δεξιά */}
+            <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
                 <Button
-                    variant="outlined"
-                    startIcon={<AddIcon />}
-                    // Αλλαγή εδώ για νέο order
+                    variant="text"
+                    size="small"
                     onClick={() => onOpenOrderModal(null)}
+                    startIcon={<AddIcon />}
+                    sx={{
+                        minWidth: 'auto',
+                        padding: '6px 8px',
+                        color: 'primary.main',
+                        fontWeight: 'bold',
+                        '&:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        }
+                    }}
                 >
                     Νέα Παραγγελία
                 </Button>
+            </Box>
+
+            <Stack direction="row" justifyContent="flex-start" alignItems="center" sx={{ mb: 2, pl: 1 }}>
+                <Typography variant="h6">📦 Παραγγελίες Οινοποιείου</Typography>
             </Stack>
 
             {orders.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ pl: 1 }}>
                     Δεν βρέθηκαν παραγγελίες για αυτό το οινοποιείο.
                 </Typography>
             ) : (
@@ -119,13 +103,12 @@ export default function WineryOrdersSection({ winery, setEditMode, onOpenOrderMo
                         <Paper key={order.id} sx={{ p: 2 }}>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                                 <Box>
-                                    <Typography variant="subtitle1">Παραγγελία #{order.id.substring(0, 8)}</Typography> {/* Σύντομο ID για εμφάνιση */}
+                                    <Typography variant="subtitle1">Παραγγελία #{order.id.substring(0, 8)}</Typography>
                                     <Typography variant="body2" color="text.secondary">
                                         Προϊόντα: {order.products?.length || 0} • Ημερομηνία Παραγγελίας: {order.orderDate?.toDate?.().toLocaleDateString?.() || '—'}
                                         {order.deliveryDate && ` • Παράδοση: ${order.deliveryDate.toDate().toLocaleDateString()}`}
                                     </Typography>
                                 </Box>
-                                {/* Αλλαγή εδώ για υπάρχον order */}
                                 <IconButton onClick={() => onOpenOrderModal(order)} color="primary">
                                     <EditIcon />
                                 </IconButton>
@@ -134,25 +117,6 @@ export default function WineryOrdersSection({ winery, setEditMode, onOpenOrderMo
                     ))}
                 </Stack>
             )}
-
-            {/* Το OrderEditModal δεν πρέπει πλέον να είναι εδώ.
-                Θα πρέπει να το χειρίζεται το parent component που καλεί το WineryOrdersSection. */}
-            {/* {modalOpen && (
-                <OrderEditModal
-                    open={modalOpen}
-                    onClose={handleCloseModal}
-                    order={selectedOrder}
-                    wineryId={winery?.id}
-                    wineryName={winery?.name}
-                    db={db}
-                    onSaveSuccess={handleSaveSuccess}
-                    BackdropProps={{
-                        style: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.7)' // Σκούρο μαύρο με 70% αδιαφάνεια
-                        }
-                    }}
-                />
-            )} */}
         </Box>
     );
 }

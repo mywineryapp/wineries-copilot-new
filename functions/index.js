@@ -1,20 +1,27 @@
 const admin = require("firebase-admin");
 admin.initializeApp();
 
-// Δηλώνουμε έναν-έναν τους "υπαλλήλους" μας από τα αρχεία τους
-const { processSalesFile } = require("./src/processSalesFile");
-const { populateBottleTypesFromInvoices } = require("./src/populateBottleTypes");
-const { cleanupInvoiceNotes } = require("./src/cleanupInvoices");
-const { processBalanceFile } = require("./src/processBalanceFile");
-const { deduplicateBottleTypes } = require("./src/deduplicateCollections"); // ✅ Η ΝΕΑ ΠΡΟΣΘΗΚΗ
-const { normalizeBottleInfo } = require("./src/normalizeData");
-const { runAdvancedReport } = require("./src/runAdvancedReport");
+// Import όλων των functions
+const algoliaSync = require('./algoliaSync');
+const cleanupInvoices = require('./cleanupInvoices');
+const deduplicateCollections = require('./deduplicateCollections');
+const normalizeData = require('./normalizeData');
+const populateBottleTypes = require('./populateBottleTypes');
+const processBalanceFile = require('./processBalanceFile');
+const processSalesFile = require('./processSalesFile');
+const runAdvancedReport = require('./runAdvancedReport');
+// (Πρόσθεσε εδώ οποιοδήποτε άλλο αρχείο function έχεις)
 
-// "Εξάγουμε" τους υπαλλήλους για να τους βρει το Firebase
-exports.processSalesFile = processSalesFile;
-exports.populateBottleTypesFromInvoices = populateBottleTypesFromInvoices;
-exports.cleanupInvoiceNotes = cleanupInvoiceNotes;
-exports.processBalanceFile = processBalanceFile;
-exports.deduplicateBottleTypes = deduplicateBottleTypes; // ✅ Η ΝΕΑ ΠΡΟΣΘΗΚΗ
-exports.normalizeBottleInfo = normalizeBottleInfo;
-exports.runAdvancedReport = runAdvancedReport; 
+// Export όλων των functions για να τις "δει" το Firebase
+exports.onInvoiceCreated = algoliaSync.onInvoiceCreated;
+exports.onInvoiceUpdated = algoliaSync.onInvoiceUpdated;
+exports.onInvoiceDeleted = algoliaSync.onInvoiceDeleted;
+exports.massIndexInvoices = algoliaSync.massIndexInvoices;
+
+exports.cleanupInvoiceNotes = cleanupInvoices.cleanupInvoiceNotes;
+exports.deduplicateBottleTypes = deduplicateCollections.deduplicateBottleTypes;
+exports.normalizeBottleInfo = normalizeData.normalizeBottleInfo;
+exports.populateBottleTypesFromInvoices = populateBottleTypes.populateBottleTypesFromInvoices;
+exports.processBalanceFile = processBalanceFile.processBalanceFile;
+exports.processSalesFile = processSalesFile.processSalesFile;
+exports.runAdvancedReport = runAdvancedReport.runAdvancedReport;

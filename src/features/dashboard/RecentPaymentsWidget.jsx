@@ -3,10 +3,9 @@ import {
     Box, Typography, Paper, List, ListItemButton, ListItemText, 
     Divider, Stack, Skeleton
 } from '@mui/material';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import { useModal } from '../../context/ModalContext';
 
-// ✅✅✅ ΠΛΗΡΗΣ ΚΩΔΙΚΑΣ ΓΙΑ ΤΟ SKELETON ✅✅✅
 const WidgetSkeleton = () => (
     <Stack spacing={1} sx={{p: 1}}>
         {[...Array(3)].map((_, i) => (
@@ -15,45 +14,44 @@ const WidgetSkeleton = () => (
                     <Skeleton variant="text" width="70%" />
                     <Skeleton variant="text" width="50%" />
                 </Box>
-                 <Skeleton variant="text" width="20%" />
             </Stack>
         ))}
     </Stack>
 );
 
-export default function LatestRemindersWidget({ reminders, loading }) {
+export default function RecentPaymentsWidget({ communications, loading }) {
     const { showModal } = useModal();
 
-    const handleItemClick = (communication) => {
-        showModal('COMMUNICATION_EDIT', { communication });
+    const handleItemClick = (comm) => {
+        showModal('COMMUNICATION_EDIT', { communication: comm });
     };
 
     return (
         <Paper sx={{ p: 2, height: '100%', borderRadius: 2 }}>
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
-                <NotificationsActiveIcon color="primary" />
+                <PhoneInTalkIcon color="primary" />
                 <Typography variant="h6" color="primary.main" sx={{ fontWeight: 500 }}>
-                    Επόμενες Υπενθυμίσεις
+                    Τελευταίες Κλήσεις Πληρωμών
                 </Typography>
             </Stack>
             <Divider />
             {loading ? <WidgetSkeleton /> : (
                 <List dense sx={{p: 0, pt: 1}}>
-                    {reminders.length > 0 ? reminders.map(rem => (
-                        <ListItemButton key={rem.id} onClick={() => handleItemClick(rem)}>
+                    {communications.length > 0 ? communications.map(comm => (
+                        <ListItemButton key={comm.id} onClick={() => handleItemClick(comm)}>
                             <ListItemText
                                 primaryTypographyProps={{fontWeight: 'medium'}}
-                                primary={rem.wineryName}
-                                secondary={`Σκοπός: ${rem.purposeName || '-'}`}
+                                primary={comm.wineryName}
+                                secondary={`Από: ${comm.salespersonName || '-'}`}
                             />
                             <Typography variant="body2" color="text.secondary" sx={{flexShrink: 0}}>
-                                {rem.reminderDate.toDate().toLocaleDateString('el-GR')}
+                                {comm.contactDate?.toDate().toLocaleDateString('el-GR') || '-'}
                             </Typography>
                         </ListItemButton>
                     )) : (
                         <Box sx={{ p: 3, textAlign: 'center' }}>
                             <Typography variant="body2" color="text.secondary">
-                                Δεν υπάρχουν επερχόμενες υπενθυμίσεις!
+                                Δεν υπάρχουν πρόσφατες επικοινωνίες για πληρωμές.
                             </Typography>
                         </Box>
                     )}

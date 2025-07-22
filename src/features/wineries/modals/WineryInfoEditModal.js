@@ -1,5 +1,3 @@
-// src/features/wineries/modals/WineryInfoEditModal.js
-
 import {
     Dialog,
     DialogTitle,
@@ -10,8 +8,9 @@ import {
     Button,
     Stack,
     Typography,
-    // ❌ Αφαιρέθηκε το CircularProgress
     Chip,
+    FormControlLabel,
+    Switch,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
@@ -33,6 +32,7 @@ export default function WineryInfoEditModal({ winery, open, onSaveSuccess, onClo
     const [newEmail, setNewEmail] = useState('');
     const [newPhone, setNewPhone] = useState('');
     const [saving, setSaving] = useState(false);
+    const [excludeFromReminders, setExcludeFromReminders] = useState(false);
 
     useEffect(() => {
         if (open && winery) {
@@ -42,11 +42,9 @@ export default function WineryInfoEditModal({ winery, open, onSaveSuccess, onClo
             setWebsite(winery.contactInfo?.website || '');
             setEmails(winery.contactInfo?.email || []);
             setPhones(winery.contactInfo?.phone || []);
+            setExcludeFromReminders(winery.excludeFromReminders || false);
             setNewEmail('');
             setNewPhone('');
-        } else if (!open) {
-            setLocation(''); setCounty(''); setRegion(''); setWebsite('');
-            setEmails([]); setPhones([]); setNewEmail(''); setNewPhone('');
         }
     }, [open, winery]);
 
@@ -93,6 +91,7 @@ export default function WineryInfoEditModal({ winery, open, onSaveSuccess, onClo
             await updateDoc(ref, {
                 location, county, geographicArea: region,
                 contactInfo: { website, email: emails, phone: phones },
+                excludeFromReminders: excludeFromReminders,
                 updatedAt: serverTimestamp()
             });
             showNotification('Οι πληροφορίες αποθηκεύτηκαν επιτυχώς!', 'success');
@@ -110,7 +109,6 @@ export default function WineryInfoEditModal({ winery, open, onSaveSuccess, onClo
             onClose={onClose}
             maxWidth="md"
             fullWidth
-            PaperProps={{ sx: { backgroundColor: '#fff', border: (theme) => `1px solid ${theme.palette.primary.main}`, borderRadius: 2 } }}
         >
             <DialogTitle>
                 Επεξεργασία Στοιχείων ({winery?.name || 'Φόρτωση...'})
@@ -129,6 +127,7 @@ export default function WineryInfoEditModal({ winery, open, onSaveSuccess, onClo
                     <TextField label="Περιφέρεια" value={region} onChange={(e) => setRegion(e.target.value)} fullWidth />
                     <TextField label="Ιστοσελίδα" value={website} onChange={(e) => setWebsite(e.target.value)} fullWidth />
 
+                    {/* ✅✅✅ ΕΠΑΝΑΦΕΡΑΜΕ ΤΟΝ ΚΩΔΙΚΑ ΓΙΑ EMAILS ΚΑΙ ΤΗΛΕΦΩΝΑ ✅✅✅ */}
                     <Typography variant="subtitle1">Emails</Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap">
                         {emails.map((email, i) => (
@@ -149,6 +148,23 @@ export default function WineryInfoEditModal({ winery, open, onSaveSuccess, onClo
                     <Stack direction="row" spacing={1}>
                         <TextField label="Νέο Τηλέφωνο" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} fullWidth />
                         <Button onClick={addPhone} startIcon={<AddIcon />} variant="outlined">Προσθήκη</Button>
+                    </Stack>
+                    
+                    {/* Ο διακόπτης παραμένει εδώ */}
+                    <Stack sx={{ pt: 2, borderTop: '1px solid #eee' }}>
+                         <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={excludeFromReminders}
+                                    onChange={(e) => setExcludeFromReminders(e.target.checked)}
+                                    color="secondary"
+                                />
+                            }
+                            label="Εξαίρεση από υπενθυμίσεις 'Χωρίς Επαφή'"
+                        />
+                         <Typography variant="caption" color="text.secondary" sx={{pl: 4}}>
+                            Ενεργοποίησέ το αν δεν θέλεις να σου εμφανίζεται αυτό το οινοποιείο στο widget της αρχικής οθόνης.
+                        </Typography>
                     </Stack>
                 </Stack>
             </DialogContent>

@@ -18,7 +18,8 @@ const formatDate = (timestamp) => {
     return timestamp.toDate().toLocaleDateString('el-GR');
 };
 
-export default function CommunicationListPage({ wineryFilter }) {
+// ✅ Προσθέτουμε onAddItem και onEditItem στα props
+export default function CommunicationListPage({ wineryFilter, onAddItem, onEditItem }) {
     const { showModal } = useModal();
     const [communications, setCommunications] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -30,12 +31,9 @@ export default function CommunicationListPage({ wineryFilter }) {
         let q;
         const commsRef = collection(db, 'communications');
 
-        // ✅✅✅ Η ΕΞΥΠΝΑΔΑ ΕΙΝΑΙ ΕΔΩ ✅✅✅
         if (wineryFilter?.id) {
-            // Αν μας δώσουν φίλτρο οινοποιείου, το εφαρμόζουμε
             q = query(commsRef, where('wineryId', '==', wineryFilter.id), orderBy('createdAt', 'desc'));
         } else {
-            // Αλλιώς, φέρνουμε τα πάντα
             q = query(commsRef, orderBy('createdAt', 'desc'));
         }
 
@@ -60,23 +58,30 @@ export default function CommunicationListPage({ wineryFilter }) {
     }, [communications, showOpenOnly]);
 
     const handleOpenModal = (comm = null) => {
-        const props = wineryFilter 
-            ? { communication: comm, wineryId: wineryFilter.id, wineryName: wineryFilter.name }
-            : { communication: comm };
-        showModal('COMMUNICATION_EDIT', props);
+        // ✅ Αν υπάρχει η συνάρτηση onEditItem, την καλούμε. Αλλιώς, κάνουμε ό,τι κάναμε πριν.
+        if (comm && onEditItem) {
+            onEditItem(comm);
+        } else if (!comm && onAddItem) {
+            onAddItem();
+        } else {
+             const props = wineryFilter 
+                ? { communication: comm, wineryId: wineryFilter.id, wineryName: wineryFilter.name }
+                : { communication: comm };
+            showModal('COMMUNICATION_EDIT', props);
+        }
     };
 
     if (loading) { return <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress /></Box>; }
     if (error) { return <Alert severity="error">{error}</Alert>; }
 
     return (
-        // Αν είμαστε σε φιλτραρισμένη προβολή, αλλάζουμε την εμφάνιση
         <Paper sx={{ p: wineryFilter ? 0 : 3, width: '100%', boxShadow: wineryFilter ? 'none' : '0 4px 12px rgba(0,0,0,0.05)', borderRadius: 2, border: wineryFilter ? 'none' : '1px solid #eee' }}>
             <Stack direction={{xs: 'column', sm: 'row'}} justifyContent="space-between" alignItems="center" sx={{ mb: 2, display: wineryFilter ? 'none' : 'flex' }}>
                 <Typography variant="h5" sx={{ color: 'primary.main', fontWeight: 'bold' }}>Επικοινωνίες</Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                     <FormControlLabel control={<Switch checked={showOpenOnly} onChange={(e) => setShowOpenOnly(e.target.checked)} color="primary" />} label={ <Typography sx={{ color: 'primary.main', fontWeight: 'medium' }}>Μόνο Ανοιχτές</Typography> } />
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenModal()}>Νέα Επικοινωνία</Button>
+                    {/* ✅ Το κουμπί "Νέα Επικοινωνία" θα καλεί πλέον τη νέα συνάρτηση */}
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenModal(null)}>Νέα Επικοινωνία</Button>
                 </Stack>
             </Stack>
             <TableContainer>
@@ -104,6 +109,7 @@ export default function CommunicationListPage({ wineryFilter }) {
                                 <TableCell align="right">
                                     <Stack direction="row" justifyContent="flex-end" alignItems="center">
                                         {comm.isHighPriority && <PriorityHighIcon color="error" fontSize="small" />}
+                                        {/* ✅ Το κουμπί επεξεργασίας θα καλεί πλέον τη νέα συνάρτηση */}
                                         <IconButton size="small" onClick={() => handleOpenModal(comm)}><EditIcon /></IconButton>
                                     </Stack>
                                 </TableCell>

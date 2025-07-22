@@ -10,7 +10,7 @@ import WineryContactsModal from './WineryContactsModal';
 import WineryInfoEditModal from './WineryInfoEditModal';
 import ContactsEditModal from './ContactsEditModal';
 import ProductionEditModal from './ProductionEditModal';
-import WineryCommunicationEditModal from './WineryCommunicationEditModal';
+
 // ... import άλλα modals αν χρειαστούν στο μέλλον
 
 // ✅ Τώρα παίρνει τα props απευθείας από τον GlobalModalManager
@@ -109,8 +109,7 @@ export default function WineryModalWrapper({ winery: initialWinery, open, onClos
              return <ContactsEditModal winery={wineryData} open={true} onClose={handleCloseEditModal} onSaveSuccess={handleEditSaveSuccess} db={db} />;
         case 'production':
              return <ProductionEditModal winery={wineryData} open={true} onClose={handleCloseEditModal} onSaveSuccess={handleEditSaveSuccess} db={db} />;
-        case 'communications':
-            return <WineryCommunicationEditModal winery={wineryData} open={true} onClose={handleCloseEditModal} onSaveSuccess={handleEditSaveSuccess} />
+        
         // Το βασικό παράθυρο-καρτέλα
         case 'profile':
         default:

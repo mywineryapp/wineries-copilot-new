@@ -1,5 +1,3 @@
-// src/features/balances/BalanceUploadModal.js
-
 import React, { useState } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Stack, Typography,
@@ -31,7 +29,6 @@ export default function BalanceUploadModal({ open, onClose }) {
     const handleFileChange = (event) => {
         if (event.target.files && event.target.files[0]) {
             const file = event.target.files[0];
-            // ✅✅✅ ΑΛΛΑΓΗ: Τώρα ελέγχουμε για Excel ✅✅✅
             if (file.name.toLowerCase().endsWith('.xls') || file.name.toLowerCase().endsWith('.xlsx')) {
                  setSelectedFile(file);
             } else {
@@ -48,7 +45,9 @@ export default function BalanceUploadModal({ open, onClose }) {
 
         setLoading(true);
         try {
-            const storageRef = ref(storage, `balance-sheets/${new Date().toISOString()}-${selectedFile.name}`);
+            // ✅✅✅ Η ΔΙΟΡΘΩΣΗ ΕΙΝΑΙ ΕΔΩ ✅✅✅
+            // Τώρα στέλνει το αρχείο στον σωστό φάκελο `balance-uploads/`
+            const storageRef = ref(storage, `balance-uploads/${new Date().toISOString()}-${selectedFile.name}`);
             await uploadBytes(storageRef, selectedFile);
             showNotification('Το αρχείο ανέβηκε! Η ενημέρωση θα ξεκινήσει αυτόματα.', 'success');
             onClose();
@@ -74,7 +73,6 @@ export default function BalanceUploadModal({ open, onClose }) {
                     
                     <Button component="label" role={undefined} variant="contained" tabIndex={-1} startIcon={<UploadFileIcon />}>
                         Επιλογή Αρχείου Excel
-                        {/* ✅✅✅ ΑΛΛΑΓΗ: Τώρα δέχεται .xls, .xlsx ✅✅✅ */}
                         <VisuallyHiddenInput type="file" onChange={handleFileChange} accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
                     </Button>
                     

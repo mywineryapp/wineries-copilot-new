@@ -1,110 +1,97 @@
-import {
-  Box, Typography, Button, TextField, MenuItem, Select, InputLabel,
-  FormControl, Paper, Stack, IconButton
-} from '@mui/material';
-import { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import { Box, Paper, CircularProgress, Alert, Backdrop, Button } from '@mui/material';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../services/firestore';
+import OrderToolbar from './OrderToolbar';
+import OrderTable from './OrderTable';
 import OrderModalWrapper from './OrderModalWrapper';
-import { getFirestore, collection, query, getDocs } from 'firebase/firestore';
-import EditIcon from '@mui/icons-material/Edit';
-import AddIcon from '@mui/icons-material/Add';
 
-export default function OrdersList({ customerId, customerName }) {
-  const db = getFirestore();
-  const [orders, setOrders] = useState([]);
-  const [searchText, setSearchText] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState(undefined);
+const filterOrders = (orders, searchTerm) => {
+    if (!searchTerm) return orders;
+    const term = searchTerm.toLowerCase();
+    return orders.filter(order =>
+        (typeof order.wineryName === 'object'
+            ? order.wineryName.name?.toLowerCase().includes(term)
+            : (order.wineryName || '').toLowerCase().includes(term)
+        )
+        || order.products?.some(p =>
+            (p.name || p.productName || p.wineTypeId || '').toLowerCase().includes(term)
+        )
+    );
+};
 
-  const fetchOrders = async () => {
-    try {
-      const snapshot = await getDocs(query(collection(db, 'orders')));
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      const filtered = docs.filter(o =>
-        o.customerId === customerId &&
-        (!statusFilter || o.status === statusFilter) &&
-        (searchText === '' || o.products.some(p => p.name?.toLowerCase().includes(searchText.toLowerCase())))
-      );
-      setOrders(filtered);
-    } catch (e) {
-      console.error('Error fetching orders:', e);
-    }
-  };
+export default function OrderListPage() {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [modalOrder, setModalOrder] = useState(undefined);
+    const [modalLoading, setModalLoading] = useState(false);
 
-  useEffect(() => {
-    if (customerId) fetchOrders();
-  }, [customerId, searchText, statusFilter]);
+    // Load all orders on mount
+    React.useEffect(() => {
+        setLoading(true);
+        getDocs(collection(db, 'orders'))
+            .then(snapshot => {
+                setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setLoading(false);
+            })
+            .catch(e => {
+                setError('Σφάλμα φόρτωσης παραγγελιών!');
+                setLoading(false);
+            });
+    }, []);
 
-  const handleCloseModal = () => {
-    setSelectedOrder(undefined);
-  };
+    const filteredOrders = useMemo(() => filterOrders(orders, searchTerm), [orders, searchTerm]);
 
-  const handleSaveSuccess = () => {
-    setSelectedOrder(undefined);
-    fetchOrders(); // Επαναφόρτωση μετά την αποθήκευση
-  };
+    const handleRowClick = (order) => setModalOrder(order);
 
-  return (
-    <Box sx={{ mt: 4 }}>
-      <Typography variant="h6">Παραγγελίες</Typography>
+    // Καλείται μετά από save σε modal (και για ΝΕΑ και για Επεξεργασία)
+    const handleSaveSuccess = () => {
+        setModalOrder(undefined);
+        setLoading(true);
+        getDocs(collection(db, 'orders')).then(snapshot => {
+            setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setLoading(false);
+        });
+    };
 
-      {/* 🔍 Search & Filters */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
-        <TextField
-          label="Αναζήτηση προϊόντος"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          fullWidth
-        />
-        <FormControl sx={{ minWidth: 150 }}>
-          <InputLabel>Κατάσταση</InputLabel>
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            label="Κατάσταση"
-          >
-            <MenuItem value="">Όλες</MenuItem>
-            <MenuItem value="Εκκρεμεί">Εκκρεμεί</MenuItem>
-            <MenuItem value="Ολοκληρώθηκε">Ολοκληρώθηκε</MenuItem>
-            <MenuItem value="Ακυρώθηκε">Ακυρώθηκε</MenuItem>
-          </Select>
-        </FormControl>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setSelectedOrder(null)}>
-          Νέα Παραγγελία
-        </Button>
-      </Stack>
+    // 👉 ΝΕΟ: Νέα Παραγγελία!
+    const handleNewOrder = () => {
+        setModalOrder(null);
+    };
 
-      {/* 📦 Παραγγελίες */}
-      <Stack spacing={2} sx={{ mt: 3 }}>
-        {orders.map((order) => (
-          <Paper key={order.id} sx={{ p: 2 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="subtitle1">#{order.id}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {order.products.length} προϊόντα • {order.orderDate?.toDate?.().toLocaleDateString?.() || order.orderDate}
-                </Typography>
-              </Box>
-              <IconButton onClick={() => setSelectedOrder(order)} color="primary">
-                <EditIcon />
-              </IconButton>
-            </Stack>
-          </Paper>
-        ))}
-        {orders.length === 0 && <Typography variant="body2">Δεν βρέθηκαν παραγγελίες.</Typography>}
-      </Stack>
-
-      {/* 🛠️ Modal */}
-      <OrderModalWrapper
-        order={selectedOrder}
-        open={selectedOrder !== undefined}
-        onClose={handleCloseModal}
-        onSaveSuccess={handleSaveSuccess}
-        customerId={customerId}
-        customerName={customerName}
-      />
-    </Box>
-  );
+    return (
+        <>
+            <Backdrop sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }} open={modalLoading}>
+                <CircularProgress color="inherit" />
+            </Backdrop>
+            <Paper sx={{ p: 3, width: '100%', borderRadius: 2, maxWidth: 1100, mx: 'auto', mt: 6 }}>
+                {/* Νέα παραγγελία */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                    <Button variant="contained" onClick={handleNewOrder} sx={{ fontWeight: 600, borderRadius: 2 }}>
+                        Νέα Παραγγελία
+                    </Button>
+                </Box>
+                <OrderToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}><CircularProgress /></Box>
+                ) : error ? (
+                    <Alert severity="error">{error}</Alert>
+                ) : (
+                    <OrderTable
+                        orders={filteredOrders}
+                        onRowClick={handleRowClick}
+                        reloadOrders={handleSaveSuccess}
+                    />
+                )}
+            </Paper>
+            <OrderModalWrapper
+                order={modalOrder}
+                open={modalOrder !== undefined}
+                onClose={() => setModalOrder(undefined)}
+                onSaveSuccess={handleSaveSuccess}
+            />
+        </>
+    );
 }

@@ -1,30 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Typography, Paper, List, ListItem, ListItemText, Divider, CircularProgress, Stack } from '@mui/material'; // ✅ Η ΔΙΟΡΘΩΣΗ ΕΙΝΑΙ ΕΔΩ
+import React from 'react';
+import { Typography, Paper, List, ListItemButton, ListItemText, Divider, Stack, ListItemAvatar, Avatar, Box, Skeleton } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
-import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { db } from '../../services/firestore';
+import WineBarIcon from '@mui/icons-material/WineBar';
 import { useModal } from '../../context/ModalContext';
 
-export default function RecentActivityWidget() {
+const WidgetSkeleton = () => (
+    <Stack spacing={1} sx={{p: 1}}>
+        {[...Array(3)].map((_, i) => (
+             <Stack direction="row" alignItems="center" spacing={2} key={i}>
+                <Skeleton variant="circular" width={32} height={32} />
+                <Box sx={{width: '80%'}}>
+                    <Skeleton variant="text" width="60%" />
+                    <Skeleton variant="text" width="40%" />
+                </Box>
+            </Stack>
+        ))}
+    </Stack>
+);
+
+// ✅ Δέχεται πλέον `recentActivity` και `loading` ως props
+export default function RecentActivityWidget({ recentActivity, loading }) {
     const { showModal } = useModal();
-    const [recent, setRecent] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const q = query(
-            collection(db, 'wineries'),
-            orderBy('lastOpenedAt', 'desc'),
-            limit(5)
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const recentWineries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setRecent(recentWineries);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, []);
 
     const handleItemClick = (winery) => {
         showModal('WINERY_PROFILE', { winery });
@@ -32,22 +28,34 @@ export default function RecentActivityWidget() {
 
     return (
         <Paper sx={{ p: 2, height: '100%', borderRadius: 2 }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <HistoryIcon color="primary" />
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+                <Avatar sx={{ bgcolor: 'secondary.light' }}>
+                    <HistoryIcon sx={{color: 'secondary.dark'}}/>
+                </Avatar>
                 <Typography variant="h6">Πρόσφατη Δραστηριότητα</Typography>
             </Stack>
             <Divider />
-            {loading ? <CircularProgress sx={{mt: 2}} /> : (
-                <List dense>
-                    {recent.length > 0 ? recent.map(winery => (
-                        <ListItem button key={winery.id} onClick={() => handleItemClick(winery)}>
+            {loading ? <WidgetSkeleton /> : (
+                <List dense sx={{p: 0, pt: 1}}>
+                    {recentActivity.length > 0 ? recentActivity.map(winery => (
+                        <ListItemButton key={winery.id} onClick={() => handleItemClick(winery)}>
+                             <ListItemAvatar>
+                                <Avatar sx={{ width: 32, height: 32 }}>
+                                    <WineBarIcon fontSize="small"/>
+                                </Avatar>
+                            </ListItemAvatar>
                             <ListItemText
+                                primaryTypographyProps={{fontWeight: 'medium'}}
                                 primary={winery.name}
-                                secondary={winery.lastOpenedAt ? `Ανοίχτηκε: ${winery.lastOpenedAt.toDate().toLocaleString('el-GR')}` : 'Δεν έχει ανοιχτεί'}
+                                secondary={winery.lastOpenedAt ? `Ανοίχτηκε: ${winery.lastOpenedAt.toDate().toLocaleDateString('el-GR')}` : 'N/A'}
                             />
-                        </ListItem>
+                        </ListItemButton>
                     )) : (
-                         <Typography variant="body2" color="text.secondary" sx={{p: 2}}>Δεν υπάρχει πρόσφατη δραστηριότητα.</Typography>
+                        <Box sx={{ p: 3, textAlign: 'center' }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Δεν υπάρχει πρόσφατη δραστηριότητα.
+                            </Typography>
+                        </Box>
                     )}
                 </List>
             )}

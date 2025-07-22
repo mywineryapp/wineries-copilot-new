@@ -6,8 +6,13 @@ import {
   CardContent,
   Grid,
   Link,
-  Tooltip
+  Tooltip,
+  IconButton
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+
+// Αν έχεις custom EditIconButton βάλε εδώ το import!
+// import { EditIconButton } from '../../../components/buttons';
 
 export default function WineryOverviewSection({ winery, setEditMode }) {
   const handleOpenEdit = () => setEditMode('info');
@@ -18,7 +23,6 @@ export default function WineryOverviewSection({ winery, setEditMode }) {
 
   return (
     <Card
-      onClick={handleOpenEdit}
       sx={{
         mb: 3,
         borderRadius: 2,
@@ -33,6 +37,14 @@ export default function WineryOverviewSection({ winery, setEditMode }) {
         }
       }}
     >
+      {/* Edit κουμπί επάνω δεξιά */}
+      <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}>
+        {/* Αν έχεις EditIconButton, αντικατέστησε το παρακάτω */}
+        <IconButton onClick={handleOpenEdit} color="primary" size="small">
+          <EditIcon />
+        </IconButton>
+      </Box>
+
       <CardContent sx={{ backgroundColor: 'white', p: { xs: 2, sm: 3 } }}>
         <Typography
           variant="h5"

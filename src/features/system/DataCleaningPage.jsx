@@ -1,71 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Paper, TextField, Button, Stack,
-  CircularProgress, List, ListItem, Alert, Chip, Divider
+  CircularProgress, Alert, Accordion, AccordionSummary, AccordionDetails, Chip, Divider
 } from '@mui/material';
-import { collection, getDocs } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../../services/firestore';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { collection, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { db } from '../../services/firestore';
 import { useNotifier } from '../../context/NotificationContext';
 import SearchIcon from '@mui/icons-material/Search';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-// --- Component για κάθε ομάδα αποτελεσμάτων ---
-const CorrectionGroup = ({ groupName, items, onNormalize, onRefresh }) => {
-    const [newName, setNewName] = useState(groupName);
-    const [loading, setLoading] = useState(false);
-
-    const handleNormalize = async () => {
-        if (!newName.trim()) return;
-        setLoading(true);
-        const oldNames = items.map(item => item.bottleInfo);
-        // Καλούμε τη συνάρτηση που μας έδωσε ο γονέας
-        await onNormalize(oldNames, newName.trim());
-        setLoading(false);
-        // Ζητάμε από τον γονέα να ξανακάνει την αναζήτηση
-        onRefresh(); 
-    };
-
-    return (
-        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-            <Typography variant="h6">Βρέθηκαν {items.length} εγγραφές που μοιάζουν με "{groupName}"</Typography>
-            <List dense sx={{ maxHeight: 150, overflow: 'auto', my: 1 }}>
-                {items.slice(0, 5).map(item => (
-                    <ListItem key={item.id}>
-                        <Typography variant="caption">- {item.bottleInfo}</Typography>
-                    </ListItem>
-                ))}
-                {items.length > 5 && <ListItem><Typography variant="caption">...και {items.length - 5} ακόμη.</Typography></ListItem>}
-            </List>
-            <Stack direction="row" spacing={1} alignItems="center">
-                <TextField 
-                    label="Διόρθωση Όλων σε:" 
-                    value={newName} 
-                    onChange={(e) => setNewName(e.target.value)}
-                    size="small"
-                    fullWidth
-                />
-                <Button 
-                    variant="contained" 
-                    onClick={handleNormalize}
-                    disabled={loading}
-                    startIcon={loading ? <CircularProgress size={20} /> : <CheckCircleIcon />}
-                >
-                    Ομαδοποίηση
-                </Button>
-            </Stack>
-        </Paper>
-    );
-};
-
-
-// --- Το Κυρίως Component της Σελίδας ---
-export default function DataCleaningPage() {
-    const { showNotification } = useNotifier();
-    const [searchTerm, setSearchTerm] = useState('');
+// Custom Hook για τη φόρτωση των δεδομένων
+const useInvoiceData = () => {
     const [allInvoices, setAllInvoices] = useState([]);
-    const [groupedResults, setGroupedResults] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { showNotification } = useNotifier();
 
     useEffect(() => {
         const fetchAllInvoices = async () => {
@@ -82,53 +31,111 @@ export default function DataCleaningPage() {
         fetchAllInvoices();
     }, [showNotification]);
 
-    const handleSearch = () => {
-        if (!searchTerm.trim()) {
-            showNotification('Παρακαλώ εισάγετε όρο αναζήτησης.', 'warning');
-            return;
-        }
+    return { allInvoices, loading };
+};
+
+// Component για κάθε ομάδα αποτελεσμάτων, τώρα με Accordion
+const CorrectionGroup = ({ groupName, items, onNormalize, onRefresh }) => {
+    const [newName, setNewName] = useState(groupName);
+    const [loading, setLoading] = useState(false);
+
+    const handleNormalize = async () => {
+        if (!newName.trim()) return;
+        setLoading(true);
+        const itemIds = items.map(item => item.id);
+        await onNormalize(itemIds, newName.trim());
+        setLoading(false);
+        onRefresh(); 
+    };
+
+    return (
+        <Paper elevation={1} sx={{mb: 1}}>
+            <Accordion>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                        <Chip label={items.length} color="primary" size="small" />
+                        <Typography>{groupName}</Typography>
+                    </Stack>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <TextField 
+                            label="Διόρθωση Όλων σε:" 
+                            value={newName} 
+                            onChange={(e) => setNewName(e.target.value)}
+                            size="small"
+                            fullWidth
+                        />
+                        <Button 
+                            variant="contained" 
+                            onClick={handleNormalize}
+                            disabled={loading}
+                            startIcon={loading ? <CircularProgress size={20} /> : <CheckCircleIcon />}
+                        >
+                            Ομαδοποίηση
+                        </Button>
+                    </Stack>
+                </AccordionDetails>
+            </Accordion>
+        </Paper>
+    );
+};
+
+// --- Το Κυρίως Component της Σελίδας ---
+export default function DataCleaningPage() {
+    const { showNotification } = useNotifier();
+    const { allInvoices, loading: dataLoading } = useInvoiceData();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeSearch, setActiveSearch] = useState('');
+
+    const groupedResults = useMemo(() => {
+        if (!activeSearch) return [];
         
-        const term = searchTerm.trim().toLowerCase();
+        const term = activeSearch.toLowerCase();
         
         const matchingInvoices = allInvoices.filter(invoice => 
             invoice.bottleInfo && invoice.bottleInfo.toLowerCase().includes(term)
         );
 
-        if (matchingInvoices.length === 0) {
-            showNotification('Δεν βρέθηκαν εγγραφές που να περιέχουν αυτόν τον όρο.', 'info');
-            setGroupedResults([]);
-            return;
-        }
+        if (matchingInvoices.length === 0) return [];
 
-        // Ομαδοποιούμε τα αποτελέσματα με βάση το ακριβές όνομα
         const groups = matchingInvoices.reduce((acc, item) => {
             const key = item.bottleInfo;
-            if (!acc[key]) {
-                acc[key] = [];
-            }
+            if (!acc[key]) acc[key] = [];
             acc[key].push(item);
             return acc;
         }, {});
         
-        const finalGroups = Object.keys(groups).map(key => ({
+        return Object.keys(groups).map(key => ({
             groupName: key,
             items: groups[key]
-        }));
+        })).sort((a, b) => b.items.length - a.items.length);
         
-        setGroupedResults(finalGroups);
+    }, [allInvoices, activeSearch]);
+
+    const handleSearch = () => {
+        if (!searchTerm.trim()) {
+            showNotification('Παρακαλώ εισάγετε όρο αναζήτησης.', 'warning');
+            return;
+        }
+        setActiveSearch(searchTerm.trim());
     };
     
-    const handleNormalizeGroup = async (oldNames, newName) => {
+    const handleNormalizeGroup = async (itemIds, newName) => {
         try {
-            const normalizeFunction = httpsCallable(functions, 'normalizeBottleInfo');
-            const result = await normalizeFunction({ oldNames, newName });
-            showNotification(result.data.message, 'success');
+            const batch = writeBatch(db);
+            itemIds.forEach(id => {
+                const docRef = doc(db, 'invoices', id);
+                batch.update(docRef, { bottleInfo: newName });
+            });
+            await batch.commit();
+            showNotification(`Επιτυχής ομαδοποίηση ${itemIds.length} εγγραφών!`, 'success');
         } catch (error) {
             showNotification(`Σφάλμα: ${error.message}`, 'error');
         }
     };
-
-    if (loading) {
+    
+    if (dataLoading) {
         return (
             <Box sx={{display: 'flex', justifyContent: 'center', alignItems: 'center', p: 5}}>
                 <CircularProgress />
@@ -143,10 +150,10 @@ export default function DataCleaningPage() {
                 Έξυπνος Καθαρισμός Δεδομένων
             </Typography>
             <Typography paragraph color="text.secondary">
-                Αναζητήστε παραλλαγές στο πεδίο "Φιάλη" και ομαδοποιήστε τες σε μία, καθαρή εγγραφή.
+                Αναζήτησε παραλλαγές στο πεδίο "Φιάλη" και ομαδοποίησέ τες σε μία, καθαρή εγγραφή.
             </Typography>
             
-            <Stack direction="row" spacing={1} sx={{ my: 2 }}>
+            <Stack direction={{xs: 'column', sm: 'row'}} spacing={1} sx={{ my: 2 }}>
                 <TextField
                     label="Αναζήτηση Φιάλης (π.χ. 'agape')"
                     value={searchTerm}
@@ -163,19 +170,24 @@ export default function DataCleaningPage() {
             <Divider sx={{my: 3}} />
 
             {groupedResults.length > 0 ? (
-                 <Stack spacing={2}>
+                 <Stack spacing={1}>
                     {groupedResults.map(group => (
                         <CorrectionGroup 
                             key={group.groupName}
                             groupName={group.groupName}
                             items={group.items}
                             onNormalize={handleNormalizeGroup}
-                            onRefresh={handleSearch}
+                            onRefresh={() => setActiveSearch(prev => `${prev}`)}
                         />
                     ))}
                 </Stack>
             ) : (
-                <Alert severity="info">Τα αποτελέσματα της αναζήτησης θα εμφανιστούν εδώ.</Alert>
+                <Alert severity="info">
+                    {activeSearch 
+                        ? `Δεν βρέθηκαν εγγραφές που να περιέχουν τον όρο "${activeSearch}".`
+                        : "Τα αποτελέσματα της αναζήτησης θα εμφανιστούν εδώ."
+                    }
+                </Alert>
             )}
         </Paper>
     );
